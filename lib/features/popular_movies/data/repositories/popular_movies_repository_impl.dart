@@ -34,8 +34,6 @@ class PopularMoviesRepositoryImpl implements PopularMoviesRepository {
         return Right(remotePopularMovies);
       } on ServerException {
         return Left(ServerFailure());
-      } on EndOfTheListException {
-        return Left(EndOfTheListFailure());
       }
     } else {
       return Left(DeviceIsOfflineFailure());

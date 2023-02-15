@@ -14,26 +14,31 @@ class CastDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [
-          ClipOval(
-            child: CachedNetworkImage(
-              placeholder: (context, url) => const CircularProgressIndicator(),
-              fit: BoxFit.cover,
-              height: 100,
-              width: 100,
-              imageUrl: 'https://image.tmdb.org/t/p/original$imageUrl',
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              ClipOval(
+                child: CachedNetworkImage(
+                  placeholder: (context, url) =>
+                      const CircularProgressIndicator(),
+                  fit: BoxFit.cover,
+                  height: 100,
+                  width: 100,
+                  imageUrl: 'https://image.tmdb.org/t/p/original$imageUrl',
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              ),
+              Text(
+                castActorName,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
           ),
-          Text(
-            castActorName,
-            style: const TextStyle(fontSize: 16),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

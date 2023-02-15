@@ -19,7 +19,6 @@ class MovieDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    late PopularMoviesBloc popularMoviesBloc;
     return Scaffold(
       // The body is a SingleChildScrollView that allows the user to scroll through the whole screen
       body: SingleChildScrollView(
@@ -64,17 +63,20 @@ class MovieDetailsPage extends StatelessWidget {
                     right: 15,
                     child: GestureDetector(
                       onTap: () {
-                        popularMoviesBloc = context.read<PopularMoviesBloc>();
-                        popularMoviesBloc
-                            .add(AddRemoveFavorite(movie: movieInlist));
-                        // If a movie from the search list was added into the favorites list
-                        // After we retrieve it from the cache if we remove it from the favorites it will throw a bad element error
-                        // To avoid this error we navigate back from the screen after it's removed from the favorites list
                         if (popularAndSearchedMovies.contains(movieInlist) ==
                             false) {
                           Navigator.pop(context);
                         }
-                        popularMoviesBloc
+                        context
+                            .read<PopularMoviesBloc>()
+                            .add(AddRemoveFavorite(movie: movieInlist));
+
+                        // If a movie from the search list was added into the favorites list
+                        // After we retrieve it from the cache if we remove it from the favorites it will throw a bad element error
+                        // To avoid this error we navigate back from the screen after it's removed from the favorites list
+
+                        context
+                            .read<PopularMoviesBloc>()
                             .add(SaveMyState(state.favoriteMovies));
                       },
                       child: FavoriteIcon(favoriteMovie: movieInlist),
@@ -134,21 +136,29 @@ class MovieDetailsPage extends StatelessWidget {
                 /// The itemBuilder function is called for each item in the list, and it returns a CastDisplay widget, which takes imageUrl and castActorName as arguments.
                 BlocBuilder<PopularMoviesBloc, PopularMoviesState>(
                   builder: (context, state) {
-                    return SizedBox(
-                      height: MediaQuery.of(context).size.height / 5,
-                      width: MediaQuery.of(context).size.width,
-                      child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: state.castList.length,
-                          itemBuilder: (context, index) {
-                            final String? imageUrl =
-                                state.castList[index]!.profilePath;
-                            return CastDisplay(
-                              imageUrl: imageUrl,
-                              castActorName: state.castList[index]!.name!,
-                            );
-                          }),
-                    );
+                    if (state.castListStatus == CastListStatus.empty) {
+                      return const MessageDisplay(message: 'No data');
+                    } else if (state.castListStatus == CastListStatus.loading) {
+                      return const LoadingWidget();
+                    } else if (state.castListStatus == CastListStatus.success) {
+                      return SizedBox(
+                        height: MediaQuery.of(context).size.height / 5,
+                        width: MediaQuery.of(context).size.width,
+                        child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: state.castList.length,
+                            itemBuilder: (context, index) {
+                              final String? imageUrl =
+                                  state.castList[index]!.profilePath;
+                              return CastDisplay(
+                                imageUrl: imageUrl,
+                                castActorName: state.castList[index]!.name!,
+                              );
+                            }),
+                      );
+                    } else {
+                      return MessageDisplay(message: state.errorMessage);
+                    }
                   },
                 )
               ],
@@ -162,22 +172,22 @@ class MovieDetailsPage extends StatelessWidget {
   // This function is used to display star ratings based on a numerical input value rating.
   //The function returns a Text widget with different number of star characters (⭐) based on the input value.
   Text _starRating(num rating) {
-    if (rating > 8.5) {
+    if (rating >= 8.5) {
       return Text(
         '⭐' * 5,
         style: kStars,
       );
-    } else if (rating < 8.4 && rating > 6) {
+    } else if (rating <= 8.4 && rating >= 6) {
       return Text(
         '⭐' * 4,
         style: kStars,
       );
-    } else if (rating < 5.9 && rating > 4) {
+    } else if (rating <= 5.9 && rating >= 4) {
       return Text(
         '⭐' * 3,
         style: kStars,
       );
-    } else if (rating < 3.9 && rating > 2) {
+    } else if (rating <= 3.9 && rating >= 2) {
       return Text(
         '⭐' * 2,
         style: kStars,

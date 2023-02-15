@@ -22,8 +22,6 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  late PopularMoviesBloc popularMoviesBloc;
-
   final TextEditingController controller = TextEditingController();
   late String inputString = '';
   DateTime selectedYear = DateTime.now();
@@ -32,7 +30,6 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    popularMoviesBloc = context.read<PopularMoviesBloc>();
   }
 
   // List of movie genres as listed in the [TMDB] documentation
@@ -222,36 +219,32 @@ class _SearchPageState extends State<SearchPage> {
             // On Error the user is displayed a message containing the error
             BlocBuilder<PopularMoviesBloc, PopularMoviesState>(
               builder: (context, state) {
-                if (state is Loaded) {
-                  List<MovieModel> movies = state.searchedMovies;
-                  if (state.searchStatus == PopularMoviesSearchStatus.empty) {
-                    return const MessageDisplay(message: 'Start searching!');
-                  }
-                  if (state.searchStatus == PopularMoviesSearchStatus.loading) {
-                    return const Expanded(child: LoadingWidget());
+                List<MovieModel> movies = state.searchedMovies;
+                if (state.searchedMoviesStatus == SearchedMoviesStatus.empty) {
+                  return const MessageDisplay(message: 'Start searching!');
+                } else if (state.searchedMoviesStatus ==
+                    SearchedMoviesStatus.loading) {
+                  return const Expanded(child: LoadingWidget());
+                } else if (state.searchedMoviesStatus ==
+                    SearchedMoviesStatus.success) {
+                  if (movies.isEmpty) {
+                    return const MessageDisplay(
+                        message: 'No results matching your criteria...');
                   } else {
-                    if (movies.isEmpty) {
-                      return const MessageDisplay(
-                          message: 'No results matching your criteria...');
-                    } else {
-                      return Expanded(
-                        child: ListView.separated(
-                            itemBuilder: (context, index) {
-                              final movie = movies[index];
-                              return MovieListItem(
-                                  movie: movie,
-                                  popularMoviesBloc: popularMoviesBloc);
-                            },
-                            separatorBuilder: (context, index) =>
-                                const Divider(),
-                            itemCount: movies.length),
-                      );
-                    }
+                    return Expanded(
+                      child: ListView.separated(
+                          itemBuilder: (context, index) {
+                            final movie = movies[index];
+                            return MovieListItem(
+                              movie: movie,
+                            );
+                          },
+                          separatorBuilder: (context, index) => const Divider(),
+                          itemCount: movies.length),
+                    );
                   }
-                } else if (state is Error) {
-                  return MessageDisplay(message: state.error);
                 } else {
-                  return const Text('Failed');
+                  return MessageDisplay(message: state.errorMessage);
                 }
               },
             )
@@ -303,7 +296,7 @@ class _SearchPageState extends State<SearchPage> {
 // Function that triggers the SearchForMovies event when the year is not selected
   void _onSearchEvent(TextEditingController controller, String inputString) {
     controller.clear();
-    popularMoviesBloc.add(
+    context.read<PopularMoviesBloc>().add(
         GetSearchedMovies(query: inputString, selectedGenres: selectedGenres));
   }
 
@@ -311,7 +304,7 @@ class _SearchPageState extends State<SearchPage> {
   void _onSearchEventWithFilters(TextEditingController controller,
       String inputString, int year, bool yearIsSelected) {
     controller.clear();
-    popularMoviesBloc.add(GetSearchedMovies(
+    context.read<PopularMoviesBloc>().add(GetSearchedMovies(
         query: inputString,
         year: year,
         yearIsSelected: yearIsSelected,

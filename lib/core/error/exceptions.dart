@@ -2,8 +2,6 @@
 
 class ServerException implements Exception {}
 
-class EndOfTheListException implements Exception {}
-
 class DeviceIsOfflineException implements Exception {}
 
 class CacheException implements Exception {}

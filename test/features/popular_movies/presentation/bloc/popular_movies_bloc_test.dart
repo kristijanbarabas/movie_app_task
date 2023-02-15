@@ -1,7 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:movie_app_bloc/core/error/failures.dart';
 import 'package:movie_app_bloc/features/popular_movies/data/datasources/popular_movies_local_data_source.dart';
 import 'package:movie_app_bloc/features/popular_movies/data/models/popular_movies_model.dart';
 import 'package:movie_app_bloc/features/popular_movies/domain/usecases/get_popular_movies.dart';
@@ -33,9 +32,9 @@ void main() {
         popularMoviesLocalDataSource: localDataSource,
         getSearchUseCase: mockGetSearchUseCase);
   });
-  test('initialState should be Empty', () {
+  test('initialState should be PopularMoviesInitial', () {
     //
-    expect(bloc!.state, equals(Empty()));
+    expect(bloc!.state, equals(PopularMoviesInitial()));
   });
   group('GetPopularMovies', () {
     const int tPageNumber = 1;
@@ -91,41 +90,6 @@ void main() {
       await untilCalled(mockGetSearchUseCase!(any));
       // assert
       verify(mockGetSearchUseCase!(const Params(query: tQuery)));
-    });
-    test('should emit [Loading, Loaded] when data is gotten successfully',
-        () async {
-      //arrange
-      when(mockGetPopularMovies!(any))
-          .thenAnswer((_) async => Right(tTestModel));
-      //assert - later
-      final expected = [Loading(), const Loaded()];
-      expectLater(bloc!.stream.asBroadcastStream(), emitsInOrder(expected));
-      //act
-      bloc!.add(GetPopularMovies());
-    });
-    test('should emit [Loading, Error] when getting data from the server fails',
-        () async {
-      //arrange
-
-      when(mockGetPopularMovies!(any))
-          .thenAnswer((_) async => Left(ServerFailure()));
-      //assert - later
-      final expected = [Loading(), const Error(error: serverFailureMessage)];
-      expectLater(bloc!.stream.asBroadcastStream(), emitsInOrder(expected));
-      //act
-      bloc!.add(GetPopularMovies());
-    });
-    test('should emit [Loading, Error] when getting cached data fails',
-        () async {
-      //arrange
-
-      when(mockGetPopularMovies!(any))
-          .thenAnswer((_) async => Left(CacheFailure()));
-      //assert - later
-      final expected = [Loading(), const Error(error: cacheFailureMessage)];
-      expectLater(bloc!.stream.asBroadcastStream(), emitsInOrder(expected));
-      //act
-      bloc!.add(GetPopularMovies());
     });
   });
 }

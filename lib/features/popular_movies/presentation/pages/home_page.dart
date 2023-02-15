@@ -9,32 +9,22 @@ import '../bloc/popular_movies_bloc.dart';
 /// If the state is Loading, it will display a CircularProgressIndicator widget.
 /// If the state is Loaded, it will display a PopularMoviesDisplay widget with the success and moviesList parameters.
 /// If the state is Error, it will display a MessageDisplay widget with the error message. If it fails to determine the state, it will display a Text widget with 'Failed!'.
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   static const id = 'home_page';
   const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(child: BlocBuilder<PopularMoviesBloc, PopularMoviesState>(
         builder: (context, state) {
-          if (state is Empty) {
+          if (state.popularMoviesStatus == PopularMoviesStatus.empty) {
             return const MessageDisplay(
-              message: 'No data',
+              message: '',
             );
-          } else if (state is Loading) {
+          } else if (state.popularMoviesStatus == PopularMoviesStatus.loading) {
             return const CircularProgressIndicator();
-          } else if (state is Loaded) {
+          } else if (state.popularMoviesStatus == PopularMoviesStatus.success) {
             if (state.popularMovies.isEmpty) {
               return const MessageDisplay(
                   message:
@@ -45,10 +35,8 @@ class _HomePageState extends State<HomePage> {
                 moviesList: state.popularMovies,
               );
             }
-          } else if (state is Error) {
-            return MessageDisplay(message: state.error);
           } else {
-            return const Text('Failed!');
+            return MessageDisplay(message: state.errorMessage);
           }
         },
       )),

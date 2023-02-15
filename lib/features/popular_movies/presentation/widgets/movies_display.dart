@@ -20,11 +20,11 @@ class PopularMoviesDisplay extends StatefulWidget {
 
 class _PopularMoviesDisplayState extends State<PopularMoviesDisplay> {
   final controller = ScrollController();
-  late PopularMoviesBloc popularMoviesBloc;
+
   @override
   void initState() {
     super.initState();
-    popularMoviesBloc = context.read<PopularMoviesBloc>();
+
     controller.addListener(_onScroll);
   }
 
@@ -44,7 +44,6 @@ class _PopularMoviesDisplayState extends State<PopularMoviesDisplay> {
             final MovieModel movie = widget.moviesList[index];
             return MovieListItem(
               movie: movie,
-              popularMoviesBloc: popularMoviesBloc,
             );
           } else if (widget.success == false) {
             return const MessageDisplay(message: 'You have reached the end!');
@@ -60,7 +59,7 @@ class _PopularMoviesDisplayState extends State<PopularMoviesDisplay> {
     double maxScroll = controller.position.maxScrollExtent;
     double currentScroll = controller.position.pixels;
     if (currentScroll == maxScroll) {
-      popularMoviesBloc.add(GetPopularMovies());
+      context.read<PopularMoviesBloc>().add(GetPopularMovies());
     }
   }
 

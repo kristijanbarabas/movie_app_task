@@ -16,6 +16,9 @@ abstract class PopularMoviesRemoteDataSource {
       {required String query, int year = 0});
 }
 
+const String apikey = '1c1e3c3dcae5f4fa73783288bdf04c17';
+final Options options = Options(headers: {'Content-Type': 'application/json'});
+
 /// This is the implementation of the PopularMoviesRemoteDataSource abstract class.
 /// The class implements 3 methods getPopularMovies, getCastList, and searchMovies.
 /// Each method communicates with The Movie Database API using the Dio HTTP client to retrieve movie data.
@@ -38,25 +41,21 @@ class PopularMoviesRemoteDataSourceImpl
   @override
   Future<PopularMoviesModel?>? getPopularMovies(
       {required int pageNumber}) async {
-    const String apikey = '1c1e3c3dcae5f4fa73783288bdf04c17';
     String url =
         'https://api.themoviedb.org/3/movie/popular?api_key=$apikey&language=en-US&page=$pageNumber';
-    final Options options =
-        Options(headers: {'Content-Type': 'application/json'});
-    // The try/catch bloc solves the http 422 error, when the user reaches the end of the popular movies list
-    // You have reached the end! message is then displayed
+
     try {
       final response = await client!.get(url, options: options);
       if (response.statusCode == 200) {
         final data = PopularMoviesModel.fromJson(response.data);
         return data;
-      } else if (response.statusCode == 422) {
-        throw EndOfTheListException();
       } else {
         throw ServerException();
       }
-    } catch (e) {
-      debugPrint(e.toString());
+    } catch (error) {
+      // The try/catch bloc solves the http 422 error, when the user reaches the end of the popular movies list
+      // You have reached the end! message is displayed in the UI
+      debugPrint(error.toString());
       return null;
     }
   }
@@ -68,10 +67,6 @@ class PopularMoviesRemoteDataSourceImpl
   /// If the API returns a different status code, it throws a ServerException. In case of any error while making the API call, it returns null and prints the error message to the console.
   @override
   Future<List<CastListModel?>?>? getCastList({required int movieId}) async {
-    const String apikey = '1c1e3c3dcae5f4fa73783288bdf04c17';
-    final Options options =
-        Options(headers: {'Content-Type': 'application/json'});
-
     final response = await client!.get(
         'https://api.themoviedb.org/3/movie/$movieId/credits?api_key=$apikey#',
         options: options);
@@ -98,10 +93,6 @@ class PopularMoviesRemoteDataSourceImpl
   @override
   Future<List<MovieModel>?>? getSearchedMovies(
       {required String query, int year = 0}) async {
-    const String apikey = '1c1e3c3dcae5f4fa73783288bdf04c17';
-    final Options options =
-        Options(headers: {'Content-Type': 'application/json'});
-
     final response = await client!.get(
         "https://api.themoviedb.org/3/search/movie?api_key=$apikey&query=$query&primary_release_year=$year",
         options: options);

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 // ignore: depend_on_referenced_packages
 import 'package:bloc/bloc.dart';
 import 'package:dartz/dartz.dart';
@@ -13,7 +12,6 @@ part 'popular_movies_event.dart';
 part 'popular_movies_state.dart';
 
 const String serverFailureMessage = 'Server Failure';
-const String endOfTheListMessage = 'You have reached the end';
 const String cacheFailureMessage = 'Cache Failure';
 const String deviceIsOfflineMessage = 'Device is offline...';
 
@@ -32,18 +30,20 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
       required this.getCastListUseCase,
       required this.popularMoviesLocalDataSource,
       required this.getSearchUseCase})
-      : super(Empty()) {
-    ///When the page number is 1, it emits a Loading state and retrieves movie data from the API with the help of getPopularMoviesData function, passing in Params(pageNumber: pageNumber) as the argument. If the data is successfully retrieved, the state of the UI is updated with either the Loaded or Error state, determined by _eitherLoadedOrErrorState function, by passing the retrieved data to it and waiting for the result. The page number is then incremented.
+      : super(PopularMoviesInitial()) {
+    ///When the page number is 1, it emits a Loading state and retrieves movie data from the API with the help of getPopularMoviesData function, passing in Params(pageNumber: pageNumber) as the argument. If the data is successfully retrieved, the state of the UI is updated with either the Loaded or Error state, determined by _eitherSuccessOrErrorStatePopularMovies function, by passing the retrieved data to it and waiting for the result. The page number is then incremented.
     /// For subsequent pages, the same process is repeated, without emitting the Loading state.
     on<GetPopularMovies>(
       (event, emit) async {
         if (pageNumber == 1) {
-          emit(Loading());
+          emit(const PopularMoviesState(
+              popularMoviesStatus: PopularMoviesStatus.loading));
           final failureOrPopularMovies =
               await getPopularMoviesData!(Params(pageNumber: pageNumber));
           if (failureOrPopularMovies != null) {
             // we need to await the future and then emit the proper state
-            emit(await _eitherLoadedOrErrorState(failureOrPopularMovies));
+            emit(await _eitherSuccessOrErrorStatePopularMovies(
+                failureOrPopularMovies));
             pageNumber++;
           }
         } else {
@@ -51,7 +51,8 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
               await getPopularMoviesData!(Params(pageNumber: pageNumber));
           if (failureOrPopularMovies != null) {
             // we need to await the future and then emit the proper state
-            emit(await _eitherLoadedOrErrorState(failureOrPopularMovies));
+            emit(await _eitherSuccessOrErrorStatePopularMovies(
+                failureOrPopularMovies));
             pageNumber++;
           }
         }
@@ -59,13 +60,13 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
     );
 
     /// It retrieves the cast data using the getCastListUseCase function, passing in Params(movieId: event.movieId) as the argument, where event.movieId is the movie ID passed in from the event.
-    /// If the data is successfully retrieved, the state of the UI is updated with either the Loaded or Error state,
-    /// determined by _eitherLoadedOrErrorStateCast function, by passing the retrieved data to it and waiting for the result.
+    /// If the data is successfully retrieved, the state of the UI is updated with either the Success or Error state,
+    /// determined by _eitherSuccessOrErrorStateCastList function, by passing the retrieved data to it and waiting for the result.
     on<GetCast>((event, emit) async {
       final failureOrCastList =
           await getCastListUseCase!(Params(movieId: event.movieId));
       if (failureOrCastList != null) {
-        emit(await _eitherLoadedOrErrorStateCast(failureOrCastList));
+        emit(await _eitherSuccessOrErrorStateCastList(failureOrCastList));
       }
     });
 
@@ -83,19 +84,21 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
       await popularMoviesLocalDataSource!.saveState(state.favoriteMovies);
     });
 
-    /// This code implements an event handler for the "SearchForMovies" event in a Bloc. When this event is triggered, the handler will emit a "Loaded" state with a status of "loading", and the favoriteMovies and popularMovies from the current state will not be changed.
+    /// This code implements an event handler for the "SearchForMovies" event in a Bloc. When this event is triggered, the handler will emit a "Success" state with a status of "loading", and the favoriteMovies and popularMovies from the current state will not be changed.
     /// Then, it calls the "getSearchUseCase" which presumably returns either a failure or a list of search results, represented as a "failureOrSearchResults" object.
-    /// If the "failureOrSearchResults" is not null, the handler will then call another method "_eitherLoadedOrErrorSearchResults" which takes the "failureOrSearchResults" and the original "SearchForMovies" event as arguments, and returns a "Loaded" state or an "Error" state. The resulting state is then emitted.
+    /// If the "failureOrSearchResults" is not null, the handler will then call another method "_eitherSuccessOrErrorSearchResults" which takes the "failureOrSearchResults" and the original "SearchForMovies" event as arguments, and returns a "Success" state or an "Error" state. The resulting state is then emitted.
     on<GetSearchedMovies>((event, emit) async {
-      emit(Loaded(
-          searchStatus: PopularMoviesSearchStatus.loading,
+      emit(PopularMoviesState(
+          popularMoviesStatus: state.popularMoviesStatus,
+          favoriteMoviesStatus: state.favoriteMoviesStatus,
+          searchedMoviesStatus: SearchedMoviesStatus.loading,
           favoriteMovies: state.favoriteMovies,
           popularMovies: state.popularMovies));
 
       final failureOrSearchResults =
           await getSearchUseCase!(Params(query: event.query, year: event.year));
       if (failureOrSearchResults != null) {
-        emit(await _eitherLoadedOrErrorSearchResults(
+        emit(await _eitherSuccessOrErrorSearchResults(
             failureOrSearchResults, event));
       }
     });
@@ -105,16 +108,21 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
   /// The failureOrPopularMovies parameter is an instance of Either which can either be a failure or a successful result. The Either type is used to represent values with two possibilities, one being a success and the other a failure.
   /// The function uses the fold method to unwrap the value from the Either instance.
   /// If the value is a failure, it maps the failure to a message using the _mapFailureToMessage function and returns an instance of Error with the error message.
-  /// If the value is a success, it returns an instance of Loaded with the updated list of popular movies by adding the new results to the existing list of popular movies in the state.
-  /// If the API call was successful but returned an empty result, it returns a Loaded object with a success property set to false.
-  Future<PopularMoviesState> _eitherLoadedOrErrorState(
+  /// If the value is a success, it returns an instance of success with the updated list of popular movies by adding the new results to the existing list of popular movies in the state.
+  /// If the API call was successful but returned an empty result, it returns a success object with a success property set to false.
+  Future<PopularMoviesState> _eitherSuccessOrErrorStatePopularMovies(
     Either<Failure?, PopularMovies?> failureOrPopularMovies,
   ) async {
     return await failureOrPopularMovies.fold(
-        (failure) => Error(error: _mapFailureToMessage(failure: failure!)),
-        (movies) {
+        (failure) => PopularMoviesState(
+              popularMoviesStatus: PopularMoviesStatus.error,
+              errorMessage: _mapFailureToMessage(failure: failure!),
+            ), (movies) {
       if (movies != null) {
-        return Loaded(
+        return PopularMoviesState(
+            popularMoviesStatus: PopularMoviesStatus.success,
+            favoriteMoviesStatus: state.favoriteMoviesStatus,
+            searchedMoviesStatus: state.searchedMoviesStatus,
             searchedMovies: state.searchedMovies,
             favoriteMovies: state.favoriteMovies,
             popularMovies: List.of(state.popularMovies)
@@ -123,7 +131,10 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
         // If the response is good but the results from the API call are empty that means that the end of the popular movies is reached
         // The user will then be displayed the message that he has reached the end
         // and the success state is changed to false because by default it is set to true
-        return Loaded(
+        return PopularMoviesState(
+            popularMoviesStatus: PopularMoviesStatus.success,
+            favoriteMoviesStatus: state.favoriteMoviesStatus,
+            searchedMoviesStatus: state.searchedMoviesStatus,
             success: false,
             searchedMovies: state.searchedMovies,
             favoriteMovies: state.favoriteMovies,
@@ -134,15 +145,22 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
 
   /// This function maps a result of either a failure or a cast list to a PopularMoviesState.
   /// If the result is a failure, it returns an Error state with an error message.
-  /// Otherwise, it returns a Loaded state with the updated cast list and the unchanged popular movies, favorite movies, and searched movies.
-  Future<PopularMoviesState> _eitherLoadedOrErrorStateCast(
+  /// Otherwise, it returns a success state with the updated cast list and the unchanged popular movies, favorite movies, and searched movies.
+  Future<PopularMoviesState> _eitherSuccessOrErrorStateCastList(
     Either<Failure?, List<CastListModel?>?> failureOrCastList,
   ) async {
     return await failureOrCastList.fold(
-        (failure) => Error(error: _mapFailureToMessage(failure: failure!)),
-        (castList) {
-      return Loaded(
-          searchStatus: state.searchStatus,
+        (failure) => PopularMoviesState(
+            searchedMoviesStatus: state.searchedMoviesStatus,
+            favoriteMoviesStatus: state.favoriteMoviesStatus,
+            popularMoviesStatus: state.popularMoviesStatus,
+            castListStatus: CastListStatus.error,
+            errorMessage: _mapFailureToMessage(failure: failure!)), (castList) {
+      return PopularMoviesState(
+          castListStatus: CastListStatus.success,
+          popularMoviesStatus: state.popularMoviesStatus,
+          favoriteMoviesStatus: state.favoriteMoviesStatus,
+          searchedMoviesStatus: state.searchedMoviesStatus,
           castList: castList!,
           searchedMovies: state.searchedMovies,
           favoriteMovies: state.favoriteMovies,
@@ -154,12 +172,18 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
   /// The function uses the fold method to handle the two cases. If the Either object has a Failure type, the function returns an Error state with an error message generated by the _mapFailureToMessage function.
   /// If the Either object has a list of MovieModel objects, the function first checks if the year is selected in the SearchForMovies event and then performs some operations on the list of movies based on the selected year and genres.
   /// If the year is selected, the function filters the list of movies based on the selected genres, and if the year is not selected, the function filters the list of movies based on the selected genres.
-  /// Finally, the function returns a Loaded state with updated lists of favorite, popular, and searched movies.
-  Future<PopularMoviesState> _eitherLoadedOrErrorSearchResults(
+  /// Finally, the function returns a success state with updated lists of favorite, popular, and searched movies.
+  Future<PopularMoviesState> _eitherSuccessOrErrorSearchResults(
       Either<Failure?, List<MovieModel>?> failureOrSearchResults,
       GetSearchedMovies event) async {
     return await failureOrSearchResults.fold(
-        (failure) => Error(error: _mapFailureToMessage(failure: failure!)),
+        (failure) => PopularMoviesState(
+            popularMovies: state.popularMovies,
+            favoriteMovies: state.favoriteMovies,
+            popularMoviesStatus: state.popularMoviesStatus,
+            favoriteMoviesStatus: state.favoriteMoviesStatus,
+            searchedMoviesStatus: SearchedMoviesStatus.error,
+            errorMessage: _mapFailureToMessage(failure: failure!)),
         (searchResults) {
       List<MovieModel> favoriteMovies = List.from(state.favoriteMovies);
       List<MovieModel> popularMovies = List.from(state.popularMovies);
@@ -187,8 +211,11 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
           }
         }
         // If no genres were selected return the searchedMovies, otherwise return the matchingMovies
-        return Loaded(
-            searchStatus: PopularMoviesSearchStatus.success,
+        return PopularMoviesState(
+            popularMoviesStatus: state.popularMoviesStatus,
+            favoriteMoviesStatus: state.favoriteMoviesStatus,
+            castListStatus: state.castListStatus,
+            searchedMoviesStatus: SearchedMoviesStatus.success,
             searchedMovies:
                 event.selectedGenres.isEmpty ? searchedMovies : matchingMovies,
             favoriteMovies: favoriteMovies,
@@ -216,8 +243,12 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
           }
         }
         // If no genres were selected return the searchedMovies, otherwise return the matchingMovies
-        return Loaded(
-            searchStatus: PopularMoviesSearchStatus.success,
+        return PopularMoviesState(
+            errorMessage: state.errorMessage,
+            popularMoviesStatus: state.popularMoviesStatus,
+            favoriteMoviesStatus: state.favoriteMoviesStatus,
+            castListStatus: state.castListStatus,
+            searchedMoviesStatus: SearchedMoviesStatus.success,
             searchedMovies:
                 event.selectedGenres.isEmpty ? searchedMovies : matchingMovies,
             favoriteMovies: favoriteMovies,
@@ -230,7 +261,7 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
   /// The state of the favorite, popular and searched movies lists is stored in variables favoriteMovies, popularMovies, and searchedMovies respectively.
   /// If the movie is not already a favorite, the function finds the index of the movie in the popular and searched movies lists and updates it to have the isFavorite attribute set to true, and adds the movie to the list of favorite movies.
   /// If the movie is already a favorite, the function finds the index of the movie in the popular and searched movies lists and updates it to have the isFavorite attribute set to false, and removes the movie from the list of favorite movies.
-  /// Finally, the function updates the UI state with the updated lists by emitting a new Loaded state.
+  /// Finally, the function updates the UI state with the updated lists by emitting a new success state.
   void _addOrRemoveFavoriteMovie(
       AddRemoveFavorite event, Emitter<PopularMoviesState> emit) {
     final state = this.state;
@@ -267,8 +298,11 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
       favoriteMovies.remove(event.movie);
     }
 
-    emit(Loaded(
-        searchStatus: state.searchStatus,
+    emit(PopularMoviesState(
+        castListStatus: state.castListStatus,
+        popularMoviesStatus: state.popularMoviesStatus,
+        favoriteMoviesStatus: state.favoriteMoviesStatus,
+        searchedMoviesStatus: state.searchedMoviesStatus,
         popularMovies: popularMovies,
         favoriteMovies: favoriteMovies,
         searchedMovies: searchedMovies));
@@ -278,8 +312,7 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
   /// The _loadMyState function retrieves the favorite movies from local cache using the popularMoviesLocalDataSource object, and updates the popular movies list to include the favorite movies.
   /// The updated popular movies list is then emitted as the new state using the emit function. If there are no popular movies, the function emits an Error state with an error message "Server failure".
   void _loadMyState(LoadMyState event, Emitter<PopularMoviesState> emit) async {
-    await Future.delayed(const Duration(milliseconds: 1500));
-    final state = this.state;
+    await Future.delayed(const Duration(seconds: 2));
     List<MovieModel> popularMovies = List.from(state.popularMovies);
     final favoriteMoviesFromCache =
         await popularMoviesLocalDataSource!.loadState();
@@ -291,7 +324,11 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
       }
     }
 
-    emit(Loaded(
+    emit(PopularMoviesState(
+        errorMessage: state.errorMessage,
+        popularMoviesStatus: state.popularMoviesStatus,
+        searchedMoviesStatus: state.searchedMoviesStatus,
+        favoriteMoviesStatus: FavoriteMoviesStatus.success,
         searchedMovies: state.searchedMovies,
         favoriteMovies: favoriteMoviesFromCache,
         popularMovies: popularMovies,
@@ -303,8 +340,6 @@ class PopularMoviesBloc extends Bloc<PopularMoviesEvent, PopularMoviesState> {
     switch (failure.runtimeType) {
       case ServerFailure:
         return serverFailureMessage;
-      case EndOfTheListFailure:
-        return endOfTheListMessage;
       case DeviceIsOfflineFailure:
         return deviceIsOfflineMessage;
       case CacheFailure:

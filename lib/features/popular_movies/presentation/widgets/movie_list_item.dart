@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:movie_app_bloc/features/popular_movies/presentation/widgets/widgets.dart';
 import '../../../../core/presentation/constants.dart';
@@ -13,10 +14,8 @@ import '../bloc/popular_movies_bloc.dart';
 /// The widget also has a FavoriteIcon widget, which displays whether the movie is a favorite or not.
 /// The MovieListItem widget is used within PopularMoviesDisplay to display a list of popular movies.
 class MovieListItem extends StatelessWidget {
-  const MovieListItem(
-      {Key? key, required this.movie, required this.popularMoviesBloc})
-      : super(key: key);
-  final PopularMoviesBloc popularMoviesBloc;
+  const MovieListItem({Key? key, required this.movie}) : super(key: key);
+
   final MovieModel movie;
 
   @override
@@ -37,7 +36,7 @@ class MovieListItem extends StatelessWidget {
       padding: const EdgeInsets.all(20.0),
       child: GestureDetector(
         onTap: () {
-          popularMoviesBloc.add(GetCast(movieId: movie.id!));
+          context.read<PopularMoviesBloc>().add(GetCast(movieId: movie.id!));
           Navigator.push(
               context,
               MaterialPageRoute(

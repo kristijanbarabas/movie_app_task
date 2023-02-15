@@ -26,7 +26,6 @@ class MyApp extends StatelessWidget {
             di.sl<PopularMoviesBloc>()..add(GetPopularMovies()),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Flutter Demo',
           theme: kAppTheme,
           // The MyApp widget also sets up the app theme and sets the home property to the TabsScreen widget.
           home: const TabsScreen(),
